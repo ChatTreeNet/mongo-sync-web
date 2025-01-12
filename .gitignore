@@ -1,3 +1,5 @@
-# MongoDB Sync Config
+# MongoDB Sync Files
 src/config/sync-config.json
 src/config/sync-config.json.*
+src/config/sync-logs.json
+src/config/sync-logs.json.*
