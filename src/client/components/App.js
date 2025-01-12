@@ -6,15 +6,17 @@ import ScheduleConfig from './ScheduleConfig';
 import TimeWindowConfig from './TimeWindowConfig';
 import SyncStatus from './SyncStatus';
 import LogViewer from './LogViewer';
+import LiveLogViewer from './LiveLogViewer';
 import SyncControls from './SyncControls';
 import LanguageSwitcher from './LanguageSwitcher';
 import * as api from '../utils/apiUtils';
 import '../i18n';
 import '../styles/main.css';
+import '../styles/live-log.css';
 
 function App() {
   const { t } = useTranslation();
-  
+
   const defaultConfig = {
     sourceUrl: '',
     targetUrl: '',
@@ -41,6 +43,7 @@ function App() {
   const [availableCollections, setAvailableCollections] = useState([]);
   const [isLoadingCollections, setIsLoadingCollections] = useState(false);
   const [selectedCollections, setSelectedCollections] = useState([]);
+  const [showLiveLogs, setShowLiveLogs] = useState(false);
 
   // Initial data fetch
   useEffect(() => {
@@ -51,7 +54,7 @@ function App() {
           api.fetchStatus(),
           api.fetchLogs()
         ]);
-        
+
         setConfig(configData || defaultConfig);
         setStatus(statusData);
         setLogs(logsData);
@@ -83,16 +86,16 @@ function App() {
   useEffect(() => {
     const fetchCollectionsData = async () => {
       if (!config.sourceUrl || !config.targetUrl) return;
-      
+
       setIsLoadingCollections(true);
       try {
         const data = await api.fetchCollections(config.sourceUrl, config.targetUrl);
         setAvailableCollections(data);
-        
+
         // Pre-select collections if they were previously configured
         if (config.collections) {
           const previousCollections = config.collections.split(',').map(c => c.trim());
-          setSelectedCollections(previousCollections.filter(c => 
+          setSelectedCollections(previousCollections.filter(c =>
             data.sourceCollections.some(col => col.name === c)
           ));
         }
@@ -120,12 +123,12 @@ function App() {
       const newSelected = isSelected
         ? [...prev, collectionName]
         : prev.filter(c => c !== collectionName);
-      
+
       setConfig(prevConfig => ({
         ...prevConfig,
         collections: newSelected.join(',')
       }));
-      
+
       return newSelected;
     });
   };
@@ -136,7 +139,7 @@ function App() {
 
     try {
       setIsSaving(true);
-      
+
       // Validate configuration
       const errors = api.validateConfig(config);
       if (errors.length > 0) {
@@ -146,7 +149,7 @@ function App() {
 
       await api.saveConfig(config);
       alert(t('common.save') + ' ' + t('common.success'));
-      
+
       // Refresh data
       const [configData, statusData] = await Promise.all([
         api.fetchConfig(),
@@ -167,6 +170,7 @@ function App() {
 
     try {
       setIsSyncing(true);
+      setShowLiveLogs(true);
       await api.triggerSync();
       const [statusData, logsData] = await Promise.all([
         api.fetchStatus(),
@@ -190,6 +194,10 @@ function App() {
     }
   };
 
+  const handleCloseLiveLogs = () => {
+    setShowLiveLogs(false);
+  };
+
   return (
     <div className="container">
       <LanguageSwitcher />
@@ -198,7 +206,7 @@ function App() {
       <SyncStatus status={status} />
 
       <form onSubmit={handleSave} className="config-form">
-        <DatabaseConfig 
+        <DatabaseConfig
           config={config}
           onConfigChange={handleConfigChange}
         />
@@ -232,6 +240,11 @@ function App() {
       <LogViewer
         logs={logs}
         onClearLogs={handleClearLogs}
+      />
+
+      <LiveLogViewer
+        isVisible={showLiveLogs}
+        onClose={handleCloseLiveLogs}
       />
     </div>
   );

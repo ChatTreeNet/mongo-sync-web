@@ -33,7 +33,7 @@ class SyncService {
         // Get native client and database references
         const sourceClient = sourceConn.getClient();
         const sourceDb = sourceClient.db();
-        
+
         // Test source connection with read preference
         await sourceDb.command({ ping: 1 }, { readPreference: 'secondaryPreferred' });
         console.log('Source database ping successful');
@@ -64,7 +64,7 @@ class SyncService {
         const targetDb = targetConn.getClient().db();
         await targetDb.command({ ping: 1 }, { readPreference: 'secondaryPreferred' });
         console.log('Target database ping successful');
-        
+
         this.targetDb = targetConn;
         await logManager.addLog('info', 'Successfully connected to source and target databases');
       } catch (error) {
@@ -80,9 +80,9 @@ class SyncService {
     } catch (error) {
       if (this.sourceDb) await this.sourceDb.close();
       if (this.targetDb) await this.targetDb.close();
-      
+
       console.error('Connection error:', error);
-      await logManager.addLog('error', 'Failed to connect to databases', { 
+      await logManager.addLog('error', 'Failed to connect to databases', {
         error: error.message,
         code: error.code,
         details: error.errInfo || error.writeErrors || error.result
@@ -122,7 +122,7 @@ class SyncService {
       // Get native MongoDB driver connections
       const sourceClient = this.sourceDb.getClient();
       const targetClient = this.targetDb.getClient();
-      
+
       // Get database references
       const sourceDb = sourceClient.db();
       const targetDb = targetClient.db();
@@ -139,8 +139,38 @@ class SyncService {
         throw new Error(`Source collection ${collectionName} does not exist or is not accessible: ${err.message}`);
       }
 
-      // Collection will be created automatically when we first write to it
-      await logManager.addLog('info', `Using collection: ${collectionName}`);
+      // Ensure target collection exists and copy indexes from source
+      try {
+        // Get source collection indexes
+        const sourceIndexes = await sourceCollection.indexes();
+
+        // Create target collection explicitly
+        await targetDb.createCollection(collectionName);
+        await logManager.addLog('info', `Created target collection: ${collectionName}`);
+
+        // Create indexes on target collection (excluding _id index which is created automatically)
+        const indexPromises = sourceIndexes
+          .filter(index => index.name !== '_id_')
+          .map(async (index) => {
+            const indexSpec = { ...index };
+            delete indexSpec.ns; // Remove namespace property
+            delete indexSpec.v;  // Remove version property
+            return targetCollection.createIndex(indexSpec.key, {
+              name: indexSpec.name,
+              unique: indexSpec.unique,
+              sparse: indexSpec.sparse,
+              background: true
+            });
+          });
+
+        await Promise.all(indexPromises);
+        await logManager.addLog('info', `Created indexes for collection: ${collectionName}`);
+      } catch (err) {
+        // Ignore error if collection already exists
+        if (err.code !== 48) { // 48 is the "NamespaceExists" error code
+          throw err;
+        }
+      }
 
       let processed = 0;
       let inserted = 0;
@@ -179,7 +209,7 @@ class SyncService {
           let result;
           while (retries > 0) {
             try {
-              result = await targetCollection.bulkWrite(operations, { 
+              result = await targetCollection.bulkWrite(operations, {
                 ordered: false,
                 writeConcern: { w: 1, wtimeout: 30000 },
                 readPreference: 'secondaryPreferred'
@@ -192,7 +222,7 @@ class SyncService {
               await new Promise(resolve => setTimeout(resolve, 1000));
             }
           }
-          
+
           inserted += result.upsertedCount || 0;
           updated += result.modifiedCount || 0;
           processed += batch.length;
@@ -239,8 +269,8 @@ class SyncService {
       // 验证最终同步结果
       const finalSourceCount = await sourceCollection.countDocuments();
       const finalTargetCount = await targetCollection.countDocuments();
-      
-      const finalStats = { 
+
+      const finalStats = {
         total,
         processed,
         inserted,
@@ -260,7 +290,7 @@ class SyncService {
       // 验证索引
       const sourceIndexes = await sourceCollection.indexes();
       const targetIndexes = await targetCollection.indexes();
-      
+
       if (sourceIndexes.length !== targetIndexes.length) {
         await logManager.addLog('warning', `Index count mismatch in ${collectionName}`, {
           source: sourceIndexes.length,
@@ -272,7 +302,7 @@ class SyncService {
       return { success: true, stats: finalStats };
     } catch (error) {
       console.error(`Error syncing collection ${collectionName}:`, error);
-      await logManager.addLog('error', `Error syncing collection ${collectionName}`, { 
+      await logManager.addLog('error', `Error syncing collection ${collectionName}`, {
         error: error.message,
         stack: error.stack,
         code: error.code,
@@ -304,7 +334,7 @@ class SyncService {
     if (success) {
       // 更新最后同步时间
       await configManager.updateLastSync(new Date());
-      
+
       // 计算总体统计信息
       const totalStats = Object.values(syncStats).reduce((acc, stats) => ({
         total: acc.total + stats.total,
@@ -313,7 +343,7 @@ class SyncService {
         updated: acc.updated + stats.updated
       }), { total: 0, processed: 0, inserted: 0, updated: 0 });
 
-      await logManager.addLog('success', 'All collections synced successfully', { 
+      await logManager.addLog('success', 'All collections synced successfully', {
         collections: this.config.collections,
         collectionStats: syncStats,
         totalStats
@@ -324,7 +354,7 @@ class SyncService {
   async updateConfig(config) {
     // Update configuration without restarting connections
     this.config = config;
-    
+
     // Update cron schedule if task exists
     if (this.currentTask) {
       this.currentTask.stop();
@@ -436,7 +466,7 @@ async function restartSync(config) {
     if (!config.sourceUrl || !config.targetUrl) {
       throw new Error('Source and target database URLs are required');
     }
-    
+
     if (syncService) {
       await syncService.stop();
     }
@@ -458,7 +488,7 @@ async function manualSync() {
     if (!config) {
       throw new Error('No configuration found');
     }
-    
+
     if (!config.sourceUrl || !config.targetUrl) {
       throw new Error('Source and target database URLs are required');
     }
