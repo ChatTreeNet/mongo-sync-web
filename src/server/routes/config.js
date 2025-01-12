@@ -13,7 +13,7 @@ async function getCollections(url) {
     await client.connect();
     const db = client.db();
     const collections = await db.listCollections().toArray();
-    
+
     // Get document count and last modified time for each collection
     const collectionsWithInfo = await Promise.all(
       collections.map(async col => {
@@ -26,7 +26,7 @@ async function getCollections(url) {
           .limit(1)
           .toArray();
         const lastModified = latestDoc[0] ? latestDoc[0]._id.getTimestamp() : null;
-        
+
         return {
           name: col.name,
           count,
@@ -34,7 +34,7 @@ async function getCollections(url) {
         };
       })
     );
-    
+
     return collectionsWithInfo;
   } finally {
     await client.close();
@@ -57,11 +57,11 @@ router.get('/collections', async (req, res) => {
     // Compare collections and mark those that need sync
     const sourceCollectionsWithStatus = sourceCollections.map(sourceColl => {
       const targetColl = targetCollections.find(tc => tc.name === sourceColl.name);
-      const needsSync = !targetColl || 
-                       targetColl.count !== sourceColl.count ||
-                       (sourceColl.lastModified && targetColl.lastModified && 
-                        sourceColl.lastModified > targetColl.lastModified);
-      
+      const needsSync = !targetColl ||
+        targetColl.count !== sourceColl.count ||
+        (sourceColl.lastModified && targetColl.lastModified &&
+          sourceColl.lastModified > targetColl.lastModified);
+
       return {
         ...sourceColl,
         targetCount: targetColl?.count || 0,
@@ -200,7 +200,7 @@ router.post('/', async (req, res) => {
     // 验证时间窗口格式
     const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
     if (!timeWindow.start || !timeWindow.end ||
-        !timeRegex.test(timeWindow.start) || !timeRegex.test(timeWindow.end)) {
+      !timeRegex.test(timeWindow.start) || !timeRegex.test(timeWindow.end)) {
       console.error('Invalid time window format:', timeWindow);
       return res.status(400).json({
         error: 'Invalid time format',
@@ -213,7 +213,7 @@ router.post('/', async (req, res) => {
     const validateCron = (cron) => {
       const parts = cron.split(' ');
       if (parts.length !== 5) return false;
-      
+
       const patterns = {
         minute: /^(\*|\d+|\d+-\d+|\d+\/\d+|(\d+,)+\d+)$/,
         hour: /^(\*|\d+|\d+-\d+|\d+\/\d+|(\d+,)+\d+)$/,
@@ -223,12 +223,12 @@ router.post('/', async (req, res) => {
       };
 
       const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
-      
+
       return patterns.minute.test(minute) &&
-             patterns.hour.test(hour) &&
-             patterns.dayOfMonth.test(dayOfMonth) &&
-             patterns.month.test(month) &&
-             patterns.dayOfWeek.test(dayOfWeek);
+        patterns.hour.test(hour) &&
+        patterns.dayOfMonth.test(dayOfMonth) &&
+        patterns.month.test(month) &&
+        patterns.dayOfWeek.test(dayOfWeek);
     };
 
     if (!validateCron(schedule)) {
@@ -251,7 +251,7 @@ router.post('/', async (req, res) => {
     };
 
     console.log('Config to save:', JSON.stringify(configToSave, null, 2));
-    
+
     try {
       const config = await configManager.save(configToSave);
       console.log('Config saved successfully:', JSON.stringify(config, null, 2));
@@ -305,7 +305,7 @@ router.delete('/logs', async (req, res) => {
   }
 });
 
-// 手动触发同步
+// Start sync
 router.post('/sync', async (req, res) => {
   try {
     console.log('[POST /api/config/sync] Triggering manual sync');
@@ -314,6 +314,21 @@ router.post('/sync', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('[POST /api/config/sync] Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Stop sync
+router.post('/sync/stop', async (req, res) => {
+  try {
+    if (!global.syncService) {
+      return res.status(400).json({ error: 'Sync service not initialized' });
+    }
+
+    const result = await global.syncService.stopSync();
+    res.json(result);
+  } catch (error) {
+    console.error('Error stopping sync:', error);
     res.status(500).json({ error: error.message });
   }
 });

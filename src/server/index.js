@@ -9,8 +9,18 @@ const logManager = require('./utils/LogManager');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({
-  server,
-  path: '/ws/logs'  // Match the client's WebSocket path
+  noServer: true,  // Handle upgrade manually
+});
+
+// Handle WebSocket upgrade
+server.on('upgrade', (request, socket, head) => {
+  if (request.url === '/ws/logs') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
 });
 
 // WebSocket clients
@@ -43,15 +53,58 @@ wss.on('connection', (ws) => {
   clients.add(ws);
   console.log('WebSocket client connected');
 
+  // Send initial connection success message
+  ws.send(JSON.stringify({
+    type: 'info',
+    message: 'Connected to sync service',
+    timestamp: new Date().toISOString()
+  }));
+
+  // Handle ping/pong to keep connection alive
+  ws.isAlive = true;
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
+
   ws.on('close', () => {
     clients.delete(ws);
+    ws.isAlive = false;
     console.log('WebSocket client disconnected');
   });
 
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
     clients.delete(ws);
+    ws.isAlive = false;
+    try {
+      ws.terminate();
+    } catch (e) {
+      console.error('Error terminating WebSocket:', e);
+    }
   });
+});
+
+// Heartbeat to check connection status
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      clients.delete(ws);
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    try {
+      ws.ping();
+    } catch (e) {
+      console.error('Error sending ping:', e);
+      clients.delete(ws);
+      ws.terminate();
+    }
+  });
+}, 30000);
+
+// Clean up interval on server close
+wss.on('close', () => {
+  clearInterval(interval);
 });
 
 // Express middleware

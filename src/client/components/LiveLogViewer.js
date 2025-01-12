@@ -9,22 +9,18 @@ const LiveLogViewer = ({ isVisible, onClose }) => {
   useEffect(() => {
     if (isVisible) {
       // Create WebSocket connection
-      // Connect directly to WebSocket server
+      // Connect through webpack dev server proxy
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsPort = process.env.NODE_ENV === 'production' ? window.location.port : '3000';
-      const ws = new WebSocket(`${wsProtocol}//${window.location.hostname}:${wsPort}/ws/logs`);
+      const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/logs`);
       wsRef.current = ws;
 
-      ws.onopen = () => {
-        setConnected(true);
-        setLogs(prev => [...prev, {
-          type: 'info',
-          message: 'Connected to sync service',
-          timestamp: new Date().toISOString()
-        }]);
-      };
-
+      // Handle ping from server
       ws.onmessage = (event) => {
+        if (event.data === 'ping') {
+          ws.send('pong');
+          return;
+        }
+
         try {
           const log = JSON.parse(event.data);
           setLogs(prev => [...prev, log]);
@@ -37,6 +33,11 @@ const LiveLogViewer = ({ isVisible, onClose }) => {
           console.error('Error parsing log message:', error);
         }
       };
+
+      ws.onopen = () => {
+        setConnected(true);
+      };
+
 
       ws.onclose = () => {
         setConnected(false);
@@ -71,11 +72,42 @@ const LiveLogViewer = ({ isVisible, onClose }) => {
       <div className="live-log-container">
         <div className="live-log-header">
           <h3>Live Sync Progress</h3>
-          <div className="connection-status">
-            <span className={`status-indicator ${connected ? 'connected' : 'disconnected'}`} />
-            {connected ? 'Connected' : 'Disconnected'}
+          <div className="header-controls">
+            <div className="connection-status">
+              <span className={`status-indicator ${connected ? 'connected' : 'disconnected'}`} />
+              {connected ? 'Connected' : 'Disconnected'}
+            </div>
+            <div className="header-buttons">
+              <button
+                className="stop-button"
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/config/sync/stop', {
+                      method: 'POST'
+                    });
+                    if (!response.ok) {
+                      throw new Error('Failed to stop sync');
+                    }
+                    setLogs(prev => [...prev, {
+                      type: 'warning',
+                      message: 'Sync operation stopped by user',
+                      timestamp: new Date().toISOString()
+                    }]);
+                  } catch (error) {
+                    console.error('Error stopping sync:', error);
+                    setLogs(prev => [...prev, {
+                      type: 'error',
+                      message: 'Failed to stop sync: ' + error.message,
+                      timestamp: new Date().toISOString()
+                    }]);
+                  }
+                }}
+              >
+                Stop Sync
+              </button>
+              <button className="close-button" onClick={onClose}>×</button>
+            </div>
           </div>
-          <button className="close-button" onClick={onClose}>×</button>
         </div>
 
         <div className="live-log-content" ref={logContainerRef}>

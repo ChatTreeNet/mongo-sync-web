@@ -438,6 +438,16 @@ class SyncService {
     this.running = false;
     await logManager.addLog('info', 'Sync service stopped', { collections: this.config?.collections });
   }
+
+  async stopSync() {
+    if (!this.running) {
+      return { success: false, message: 'No sync in progress' };
+    }
+
+    this.running = false;
+    await logManager.addLog('warning', 'Sync operation terminated by user');
+    return { success: true };
+  }
 }
 
 // 全局同步服务实例
