@@ -1,20 +1,23 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const SyncStatus = ({ status }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="status-panel">
-      <h2>Sync Status</h2>
+      <h2>{t('sync.status.title')}</h2>
       <div className="status-info">
         <p>
-          Status: 
+          {t('sync.status.label')}: 
           <span className={status.isRunning ? 'running' : 'stopped'}>
-            {status.isRunning ? 'Running' : 'Stopped'}
+            {t(status.isRunning ? 'sync.status.running' : 'sync.status.stopped')}
           </span>
         </p>
         
         {status.lastSync && (
           <p>
-            Last Sync: 
+            {t('sync.status.lastSync')}: 
             <span className="last-sync">
               {new Date(status.lastSync).toLocaleString()}
             </span>
@@ -23,9 +26,12 @@ const SyncStatus = ({ status }) => {
         
         {status.error && (
           <div className="error-container">
-            <p className="error">Error: {status.error}</p>
+            <p className="error">{t('sync.status.error')}: {status.error}</p>
             {status.errorDetails && (
               <div className="error-details">
+                <div className="error-details-header">
+                  {t('sync.status.errorDetails')}:
+                </div>
                 <pre>{JSON.stringify(status.errorDetails, null, 2)}</pre>
               </div>
             )}
@@ -41,7 +47,7 @@ const SyncStatus = ({ status }) => {
               />
             </div>
             <span className="progress-text">
-              {status.progress}% Complete
+              {status.progress}% {t('sync.status.progress.complete')}
             </span>
           </div>
         )}

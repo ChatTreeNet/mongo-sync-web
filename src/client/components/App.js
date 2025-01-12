@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import DatabaseConfig from './DatabaseConfig';
 import CollectionSelector from './CollectionSelector';
 import ScheduleConfig from './ScheduleConfig';
@@ -6,10 +7,14 @@ import TimeWindowConfig from './TimeWindowConfig';
 import SyncStatus from './SyncStatus';
 import LogViewer from './LogViewer';
 import SyncControls from './SyncControls';
+import LanguageSwitcher from './LanguageSwitcher';
 import * as api from '../utils/apiUtils';
+import '../i18n';
 import '../styles/main.css';
 
 function App() {
+  const { t } = useTranslation();
+  
   const defaultConfig = {
     sourceUrl: '',
     targetUrl: '',
@@ -93,7 +98,7 @@ function App() {
         }
       } catch (error) {
         console.error('Error fetching collections:', error);
-        alert('Error loading collections: ' + error.message);
+        alert(t('database.error.loading') + ': ' + error.message);
         setAvailableCollections([]);
       } finally {
         setIsLoadingCollections(false);
@@ -101,7 +106,7 @@ function App() {
     };
 
     fetchCollectionsData();
-  }, [config.sourceUrl, config.targetUrl]);
+  }, [config.sourceUrl, config.targetUrl, t]);
 
   const handleConfigChange = (changes) => {
     setConfig(prev => ({
@@ -140,7 +145,7 @@ function App() {
       }
 
       await api.saveConfig(config);
-      alert('Configuration saved successfully');
+      alert(t('common.save') + ' ' + t('common.success'));
       
       // Refresh data
       const [configData, statusData] = await Promise.all([
@@ -151,7 +156,7 @@ function App() {
       setStatus(statusData);
     } catch (error) {
       console.error('Error saving configuration:', error);
-      alert(`Error saving configuration: ${error.message}`);
+      alert(t('common.error.save') + ': ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -170,7 +175,7 @@ function App() {
       setStatus(statusData);
       setLogs(logsData);
     } catch (error) {
-      alert(`Failed to start sync: ${error.message}`);
+      alert(t('sync.error.start') + ': ' + error.message);
     } finally {
       setIsSyncing(false);
     }
@@ -181,13 +186,14 @@ function App() {
       await api.clearLogs();
       setLogs([]);
     } catch (error) {
-      alert('Error clearing logs: ' + error.message);
+      alert(t('logs.error.clear') + ': ' + error.message);
     }
   };
 
   return (
     <div className="container">
-      <h1>MongoDB Sync Configuration</h1>
+      <LanguageSwitcher />
+      <h1>{t('common.settings')}</h1>
 
       <SyncStatus status={status} />
 

@@ -1,0 +1,139 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "start": "开始",
+    "stop": "停止",
+    "settings": "设置",
+    "status": "状态"
+  },
+  "database": {
+    "title": "数据库配置",
+    "sourceDb": "源数据库",
+    "targetDb": "目标数据库",
+    "host": "主机地址",
+    "port": "端口",
+    "dbName": "数据库名称",
+    "username": "用户名",
+    "password": "密码",
+    "collection": "集合",
+    "example": "示例",
+    "error": {
+      "loading": "加载集合失败",
+      "connection": "连接错误"
+    }
+  },
+  "collections": {
+    "title": "待同步集合",
+    "loading": "正在加载集合...",
+    "empty": "未找到集合",
+    "enterUrls": "请输入源数据库和目标数据库URL以加载集合",
+    "records": "条记录",
+    "needsSync": "需要同步",
+    "targetOnly": "仅目标库",
+    "difference": {
+      "more": "+{{count}}条记录",
+      "less": "{{count}}条记录"
+    }
+  },
+  "schedule": {
+    "title": "计划配置",
+    "syncSchedule": "同步计划",
+    "cronExpression": "Cron表达式",
+    "timeWindow": {
+      "title": "同步时间窗口",
+      "start": "开始时间",
+      "end": "结束时间",
+      "help": "同步操作仅在此时间窗口内运行"
+    },
+    "startTime": "开始时间",
+    "endTime": "结束时间",
+    "type": {
+      "daily": "每天",
+      "weekly": "每周",
+      "monthly": "每月"
+    },
+    "day": "日期",
+    "time": "时间",
+    "weekdays": {
+      "monday": "星期一",
+      "tuesday": "星期二",
+      "wednesday": "星期三",
+      "thursday": "星期四",
+      "friday": "星期五",
+      "saturday": "星期六",
+      "sunday": "星期日"
+    },
+    "summary": {
+      "prefix": "将在以下时间运行",
+      "daily": "每天 {{time}}",
+      "weekly": "每{{day}} {{time}}",
+      "monthly": "每月{{day}}日 {{time}}",
+      "invalid": "无效的计划"
+    }
+  },
+  "sync": {
+    "title": "同步控制",
+    "status": {
+      "title": "同步状态",
+      "label": "状态",
+      "running": "运行中",
+      "stopped": "已停止",
+      "error": "错误",
+      "lastSync": "上次同步",
+      "errorDetails": "错误详情",
+      "progress": {
+        "complete": "完成"
+      }
+    },
+    "lastRun": "上次运行",
+    "nextRun": "下次运行",
+    "controls": {
+      "save": "保存配置",
+      "saving": "保存中...",
+      "syncNow": "立即同步",
+      "syncing": "同步中..."
+    }
+  },
+  "logs": {
+    "title": "同步日志",
+    "empty": "暂无日志",
+    "timestamp": "时间戳",
+    "message": "消息",
+    "clear": "清除日志",
+    "clearConfirm": "确定要清除所有日志吗？",
+    "stats": {
+      "collections": "集合",
+      "success": "成功",
+      "errors": "错误",
+      "duration": "耗时",
+      "seconds": "秒",
+      "syncing": "同步中...",
+      "none": "无",
+      "total": "总计",
+      "processed": "已处理",
+      "inserted": "新增",
+      "updated": "更新",
+      "documents": "文档"
+    },
+    "error": {
+      "details": "查看错误详情",
+      "message": "错误信息",
+      "code": "错误代码",
+      "info": "详细信息"
+    },
+    "sync": {
+      "status": {
+        "success": "成功",
+        "error": "错误",
+        "pending": "进行中"
+      },
+      "complete": "所有集合同步完成"
+    }
+  },
+  "language": {
+    "title": "语言",
+    "en": "English",
+    "zh": "中文"
+  }
+}

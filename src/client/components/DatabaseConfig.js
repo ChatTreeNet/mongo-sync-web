@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const DatabaseConfig = ({ config, onConfigChange }) => {
+  const { t } = useTranslation();
+
   // Local state for input values
   const [localConfig, setLocalConfig] = useState({
     sourceUrl: config.sourceUrl,
@@ -31,9 +34,11 @@ const DatabaseConfig = ({ config, onConfigChange }) => {
   };
 
   return (
-    <>
+    <div className="database-config">
+      <h2>{t('database.title')}</h2>
+      
       <div className="form-group">
-        <label>Source Database URL:</label>
+        <label>{t('database.sourceDb')}:</label>
         <div className="input-group">
           <input
             type="text"
@@ -45,13 +50,13 @@ const DatabaseConfig = ({ config, onConfigChange }) => {
             required
           />
           <small className="helper-text">
-            Example: mongodb://localhost:27017/source-db
+            {t('database.example')}: mongodb://localhost:27017/source-db
           </small>
         </div>
       </div>
 
       <div className="form-group">
-        <label>Target Database URL:</label>
+        <label>{t('database.targetDb')}:</label>
         <div className="input-group">
           <input
             type="text"
@@ -63,11 +68,11 @@ const DatabaseConfig = ({ config, onConfigChange }) => {
             required
           />
           <small className="helper-text">
-            Example: mongodb://localhost:27017/target-db
+            {t('database.example')}: mongodb://localhost:27017/target-db
           </small>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

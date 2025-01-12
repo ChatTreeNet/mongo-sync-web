@@ -1,7 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { getScheduleType, formatScheduleTime, parseScheduleTime } from '../utils/scheduleUtils';
 
 const ScheduleConfig = ({ config, onConfigChange }) => {
+  const { t } = useTranslation();
+
   const handleScheduleTypeChange = (type) => {
     let newSchedule;
     switch (type) {
@@ -62,9 +65,19 @@ const ScheduleConfig = ({ config, onConfigChange }) => {
   const scheduleType = config.scheduleType || getScheduleType(config.schedule);
   const scheduleTime = formatScheduleTime(config.schedule);
 
+  const weekdays = [
+    { value: '1', label: t('schedule.weekdays.monday') },
+    { value: '2', label: t('schedule.weekdays.tuesday') },
+    { value: '3', label: t('schedule.weekdays.wednesday') },
+    { value: '4', label: t('schedule.weekdays.thursday') },
+    { value: '5', label: t('schedule.weekdays.friday') },
+    { value: '6', label: t('schedule.weekdays.saturday') },
+    { value: '0', label: t('schedule.weekdays.sunday') }
+  ];
+
   return (
     <div className="form-group">
-      <label>Sync Schedule:</label>
+      <label>{t('schedule.syncSchedule')}:</label>
       <div className="schedule-config">
         <div className="schedule-type">
           <label className="schedule-option">
@@ -75,7 +88,7 @@ const ScheduleConfig = ({ config, onConfigChange }) => {
               checked={scheduleType === 'daily'}
               onChange={() => handleScheduleTypeChange('daily')}
             />
-            Daily
+            {t('schedule.type.daily')}
           </label>
           <label className="schedule-option">
             <input
@@ -85,7 +98,7 @@ const ScheduleConfig = ({ config, onConfigChange }) => {
               checked={scheduleType === 'weekly'}
               onChange={() => handleScheduleTypeChange('weekly')}
             />
-            Weekly
+            {t('schedule.type.weekly')}
           </label>
           <label className="schedule-option">
             <input
@@ -95,32 +108,28 @@ const ScheduleConfig = ({ config, onConfigChange }) => {
               checked={scheduleType === 'monthly'}
               onChange={() => handleScheduleTypeChange('monthly')}
             />
-            Monthly
+            {t('schedule.type.monthly')}
           </label>
         </div>
 
         <div className="schedule-details">
           {scheduleType === 'weekly' && (
             <div className="schedule-day">
-              <label>Day:</label>
+              <label>{t('schedule.day')}:</label>
               <select
                 value={config.schedule.match(/\* \* (\d)$/)?.[1] || '1'}
                 onChange={handleDayChange}
               >
-                <option value="1">Monday</option>
-                <option value="2">Tuesday</option>
-                <option value="3">Wednesday</option>
-                <option value="4">Thursday</option>
-                <option value="5">Friday</option>
-                <option value="6">Saturday</option>
-                <option value="0">Sunday</option>
+                {weekdays.map(day => (
+                  <option key={day.value} value={day.value}>{day.label}</option>
+                ))}
               </select>
             </div>
           )}
 
           {scheduleType === 'monthly' && (
             <div className="schedule-day">
-              <label>Day:</label>
+              <label>{t('schedule.day')}:</label>
               <select
                 value={config.schedule.match(/\* (\d+)/)?.[1] || '1'}
                 onChange={handleDayChange}
@@ -133,7 +142,7 @@ const ScheduleConfig = ({ config, onConfigChange }) => {
           )}
 
           <div className="schedule-time">
-            <label>Time:</label>
+            <label>{t('schedule.time')}:</label>
             <input
               type="time"
               value={scheduleTime}
@@ -143,20 +152,20 @@ const ScheduleConfig = ({ config, onConfigChange }) => {
         </div>
 
         <div className="schedule-summary">
-          Will run at: {(() => {
+          {t('schedule.summary.prefix')}: {(() => {
             const [minute, hour, dom, month, dow] = config.schedule.split(' ');
             const time = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
             
             switch (scheduleType) {
               case 'daily':
-                return `${time} every day`;
+                return t('schedule.summary.daily', { time });
               case 'weekly':
-                const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                return `${time} every ${days[dow]}`;
+                const day = weekdays.find(d => d.value === dow)?.label;
+                return t('schedule.summary.weekly', { time, day });
               case 'monthly':
-                return `${time} on day ${dom} of every month`;
+                return t('schedule.summary.monthly', { time, day: dom });
               default:
-                return 'Invalid schedule';
+                return t('schedule.summary.invalid');
             }
           })()}
         </div>

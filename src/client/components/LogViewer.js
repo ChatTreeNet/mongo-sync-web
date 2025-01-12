@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const LogViewer = ({ logs, onClearLogs }) => {
+  const { t } = useTranslation();
   const [expandedSyncs, setExpandedSyncs] = useState(new Set());
 
   // Group logs by sync operation
@@ -47,16 +49,16 @@ const LogViewer = ({ logs, onClearLogs }) => {
   return (
     <div className="logs-panel">
       <div className="logs-header">
-        <h2>Sync Logs</h2>
+        <h2>{t('logs.title')}</h2>
         <button 
           className="clear-logs-btn"
           onClick={() => {
-            if (window.confirm('Are you sure you want to clear all logs?')) {
+            if (window.confirm(t('logs.clearConfirm'))) {
               onClearLogs();
             }
           }}
         >
-          Clear Logs
+          {t('logs.clear')}
         </button>
       </div>
       
@@ -95,29 +97,29 @@ const LogViewer = ({ logs, onClearLogs }) => {
                   <div className="sync-main-info">
                     <span className="sync-time">{startTime.toLocaleString()}</span>
                     <span className={`sync-status ${status}`}>
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                      {t(`logs.sync.status.${status}`)}
                     </span>
                   </div>
                   <div className="sync-stats">
                     <span className="sync-stat">
-                      <span className="stat-label">Collections:</span>
+                      <span className="stat-label">{t('logs.stats.collections')}:</span>
                       <span className="stat-value">
                         {Array.from(stats.collections).filter(c => c).join(', ') || 
                          (group.find(log => log.details?.collections)?.details?.collections || '').split(',').filter(c => c.trim()).join(', ') || 
-                         (status === 'pending' ? '同步中...' : '无')}
+                         (status === 'pending' ? t('logs.stats.syncing') : t('logs.stats.none'))}
                       </span>
                     </span>
                     <span className="sync-stat">
-                      <span className="stat-label">Success:</span>
+                      <span className="stat-label">{t('logs.stats.success')}:</span>
                       <span className="stat-value success">{stats.success}</span>
                     </span>
                     <span className="sync-stat">
-                      <span className="stat-label">Errors:</span>
+                      <span className="stat-label">{t('logs.stats.errors')}:</span>
                       <span className="stat-value error">{stats.errors}</span>
                     </span>
                     <span className="sync-stat">
-                      <span className="stat-label">Duration:</span>
-                      <span className="stat-value">{duration}s</span>
+                      <span className="stat-label">{t('logs.stats.duration')}:</span>
+                      <span className="stat-value">{duration}{t('logs.stats.seconds')}</span>
                     </span>
                   </div>
                 </div>
@@ -145,12 +147,12 @@ const LogViewer = ({ logs, onClearLogs }) => {
                                   const details = e.currentTarget.nextElementSibling;
                                   details.style.display = details.style.display === 'none' ? 'block' : 'none';
                                 }}>
-                                  查看详细错误信息 ▼
+                                  {t('logs.error.details')} ▼
                                 </div>
                                 <pre className="error-details-content" style={{display: 'none'}}>
-                                  {log.details.error && `错误信息: ${log.details.error}\n`}
-                                  {log.details.code && `错误代码: ${log.details.code}\n`}
-                                  {log.details.details && `详细信息: ${JSON.stringify(log.details.details, null, 2)}`}
+                                  {log.details.error && `${t('logs.error.message')}: ${log.details.error}\n`}
+                                  {log.details.code && `${t('logs.error.code')}: ${log.details.code}\n`}
+                                  {log.details.details && `${t('logs.error.info')}: ${JSON.stringify(log.details.details, null, 2)}`}
                                 </pre>
                               </div>
                             )}
@@ -158,17 +160,17 @@ const LogViewer = ({ logs, onClearLogs }) => {
                         ) : log.message === 'All collections synced successfully' ? (
                           <div className="sync-stats">
                             <div className="sync-stats-header">
-                              {log.message}
+                              {t('logs.sync.complete')}
                             </div>
                             <div className="sync-stats-content">
                               <div className="sync-stats-total">
-                                <strong>总计：</strong>
+                                <strong>{t('logs.stats.total')}：</strong>
                                 {log.details.totalStats && (
                                   <span>
-                                    总文档数: {log.details.totalStats.total}, 
-                                    处理: {log.details.totalStats.processed}, 
-                                    新增: {log.details.totalStats.inserted}, 
-                                    更新: {log.details.totalStats.updated}
+                                    {t('logs.stats.documents')}: {log.details.totalStats.total}, 
+                                    {t('logs.stats.processed')}: {log.details.totalStats.processed}, 
+                                    {t('logs.stats.inserted')}: {log.details.totalStats.inserted}, 
+                                    {t('logs.stats.updated')}: {log.details.totalStats.updated}
                                   </span>
                                 )}
                               </div>
@@ -176,10 +178,10 @@ const LogViewer = ({ logs, onClearLogs }) => {
                                 <div key={collection} className="collection-stats">
                                   <strong>{collection}：</strong>
                                   <span>
-                                    总文档数: {stats.total}, 
-                                    处理: {stats.processed}, 
-                                    新增: {stats.inserted}, 
-                                    更新: {stats.updated}
+                                    {t('logs.stats.documents')}: {stats.total}, 
+                                    {t('logs.stats.processed')}: {stats.processed}, 
+                                    {t('logs.stats.inserted')}: {stats.inserted}, 
+                                    {t('logs.stats.updated')}: {stats.updated}
                                   </span>
                                 </div>
                               ))}
@@ -197,7 +199,7 @@ const LogViewer = ({ logs, onClearLogs }) => {
           );
         })}
         {groupedLogs.length === 0 && (
-          <p className="no-logs">No logs available</p>
+          <p className="no-logs">{t('logs.empty')}</p>
         )}
       </div>
     </div>

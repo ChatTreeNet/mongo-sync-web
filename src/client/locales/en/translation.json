@@ -1,0 +1,139 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "start": "Start",
+    "stop": "Stop",
+    "settings": "Settings",
+    "status": "Status"
+  },
+  "database": {
+    "title": "Database Configuration",
+    "sourceDb": "Source Database",
+    "targetDb": "Target Database",
+    "host": "Host",
+    "port": "Port",
+    "dbName": "Database Name",
+    "username": "Username",
+    "password": "Password",
+    "collection": "Collection",
+    "example": "Example",
+    "error": {
+      "loading": "Error loading collections",
+      "connection": "Connection error"
+    }
+  },
+  "collections": {
+    "title": "Collections to Sync",
+    "loading": "Loading collections...",
+    "empty": "No collections found",
+    "enterUrls": "Enter source and target database URLs to load collections",
+    "records": "records",
+    "needsSync": "Needs Sync",
+    "targetOnly": "Target Only",
+    "difference": {
+      "more": "+{{count}} records",
+      "less": "{{count}} records"
+    }
+  },
+  "schedule": {
+    "title": "Schedule Configuration",
+    "syncSchedule": "Sync Schedule",
+    "cronExpression": "Cron Expression",
+    "timeWindow": {
+      "title": "Sync Time Window",
+      "start": "Start",
+      "end": "End",
+      "help": "Sync operations will only run during this time window"
+    },
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "type": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "day": "Day",
+    "time": "Time",
+    "weekdays": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "summary": {
+      "prefix": "Will run at",
+      "daily": "{{time}} every day",
+      "weekly": "{{time}} every {{day}}",
+      "monthly": "{{time}} on day {{day}} of every month",
+      "invalid": "Invalid schedule"
+    }
+  },
+  "sync": {
+    "title": "Sync Controls",
+    "status": {
+      "title": "Sync Status",
+      "label": "Status",
+      "running": "Running",
+      "stopped": "Stopped",
+      "error": "Error",
+      "lastSync": "Last Sync",
+      "errorDetails": "Error Details",
+      "progress": {
+        "complete": "Complete"
+      }
+    },
+    "lastRun": "Last Run",
+    "nextRun": "Next Run",
+    "controls": {
+      "save": "Save Configuration",
+      "saving": "Saving...",
+      "syncNow": "Sync Now",
+      "syncing": "Syncing..."
+    }
+  },
+  "logs": {
+    "title": "Sync Logs",
+    "empty": "No logs available",
+    "timestamp": "Timestamp",
+    "message": "Message",
+    "clear": "Clear Logs",
+    "clearConfirm": "Are you sure you want to clear all logs?",
+    "stats": {
+      "collections": "Collections",
+      "success": "Success",
+      "errors": "Errors",
+      "duration": "Duration",
+      "seconds": "s",
+      "syncing": "Syncing...",
+      "none": "None",
+      "total": "Total",
+      "processed": "Processed",
+      "inserted": "Inserted",
+      "updated": "Updated",
+      "documents": "Documents"
+    },
+    "error": {
+      "details": "View Error Details",
+      "message": "Error Message",
+      "code": "Error Code",
+      "info": "Details"
+    },
+    "sync": {
+      "status": {
+        "success": "Success",
+        "error": "Error",
+        "pending": "Pending"
+      },
+      "complete": "All collections synced successfully"
+    }
+  },
+  "language": {
+    "title": "Language",
+    "en": "English",
+    "zh": "中文"
+  }
+}

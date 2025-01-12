@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const CollectionSelector = ({
   isLoadingCollections,
@@ -7,16 +8,18 @@ const CollectionSelector = ({
   onCollectionChange,
   config
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="form-group">
-      <label>Collections to Sync:</label>
+      <label>{t('collections.title')}:</label>
       <div className="collections-container">
         <div className="collections-header">
-          <div className="source-header">Source Database</div>
-          <div className="target-header">Target Database</div>
+          <div className="source-header">{t('database.sourceDb')}</div>
+          <div className="target-header">{t('database.targetDb')}</div>
         </div>
         {isLoadingCollections ? (
-          <div className="collections-loading">Loading collections...</div>
+          <div className="collections-loading">{t('collections.loading')}</div>
         ) : availableCollections?.sourceCollections ? (
           <div className="collections-grid">
             {/* Source Collections */}
@@ -33,8 +36,12 @@ const CollectionSelector = ({
                     />
                     <div className="collection-info">
                       <span className="collection-name">{collection.name}</span>
-                      <span className="collection-count">{collection.count.toLocaleString()} 条记录</span>
-                      {collection.needsSync && <span className="sync-badge">需要同步</span>}
+                      <span className="collection-count">
+                        {collection.count.toLocaleString()} {t('collections.records')}
+                      </span>
+                      {collection.needsSync && (
+                        <span className="sync-badge">{t('collections.needsSync')}</span>
+                      )}
                     </div>
                   </label>
                 </div>
@@ -48,11 +55,15 @@ const CollectionSelector = ({
                 <div key={collection.name} className={`collection-item ${collection.needsSync ? 'needs-sync' : ''}`}>
                   <div className="collection-info">
                     <span className="collection-name">{collection.name}</span>
-                    <span className="collection-count">{collection.targetCount.toLocaleString()} 条记录</span>
+                    <span className="collection-count">
+                      {collection.targetCount.toLocaleString()} {t('collections.records')}
+                    </span>
                     {collection.needsSync && (
                       <span className="diff-count">
-                        {collection.count > collection.targetCount ? '+' : ''}
-                        {(collection.count - collection.targetCount).toLocaleString()}
+                        {collection.count > collection.targetCount 
+                          ? t('collections.difference.more', { count: collection.count - collection.targetCount })
+                          : t('collections.difference.less', { count: collection.targetCount - collection.count })
+                        }
                       </span>
                     )}
                   </div>
@@ -63,17 +74,19 @@ const CollectionSelector = ({
                 <div key={collection.name} className="collection-item target-only">
                   <div className="collection-info">
                     <span className="collection-name">{collection.name}</span>
-                    <span className="collection-count">{collection.targetCount.toLocaleString()} 条记录</span>
-                    <span className="target-only-badge">仅目标库</span>
+                    <span className="collection-count">
+                      {collection.targetCount.toLocaleString()} {t('collections.records')}
+                    </span>
+                    <span className="target-only-badge">{t('collections.targetOnly')}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
         ) : config.sourceUrl && config.targetUrl ? (
-          <div className="collections-empty">No collections found</div>
+          <div className="collections-empty">{t('collections.empty')}</div>
         ) : (
-          <div className="collections-empty">Enter source and target database URLs to load collections</div>
+          <div className="collections-empty">{t('collections.enterUrls')}</div>
         )}
       </div>
     </div>

@@ -1,6 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const TimeWindowConfig = ({ config, onConfigChange }) => {
+  const { t } = useTranslation();
+
   const handleTimeChange = (e) => {
     const { name, value } = e.target;
     const field = name.split('.')[1]; // Extract 'start' or 'end' from 'timeWindow.start'
@@ -15,10 +18,10 @@ const TimeWindowConfig = ({ config, onConfigChange }) => {
 
   return (
     <div className="form-group">
-      <label>Sync Time Window:</label>
+      <label>{t('schedule.timeWindow.title')}:</label>
       <div className="time-window">
         <div>
-          <label>Start:</label>
+          <label>{t('schedule.timeWindow.start')}:</label>
           <input
             type="time"
             name="timeWindow.start"
@@ -28,7 +31,7 @@ const TimeWindowConfig = ({ config, onConfigChange }) => {
           />
         </div>
         <div>
-          <label>End:</label>
+          <label>{t('schedule.timeWindow.end')}:</label>
           <input
             type="time"
             name="timeWindow.end"
@@ -39,7 +42,7 @@ const TimeWindowConfig = ({ config, onConfigChange }) => {
         </div>
       </div>
       <small className="helper-text">
-        Sync operations will only run during this time window
+        {t('schedule.timeWindow.help')}
       </small>
     </div>
   );
