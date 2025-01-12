@@ -1,0 +1,4 @@
+{
+  "ignore": ["src/config/*", "dist/*"],
+  "ext": "js,mjs,cjs,json"
+}
