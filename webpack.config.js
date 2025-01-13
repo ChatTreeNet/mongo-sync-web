@@ -33,10 +33,12 @@ module.exports = {
     },
     port: 3001,
     hot: true,
+    historyApiFallback: true,
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
-        secure: false
+        secure: false,
+        changeOrigin: true
       },
       '/ws/logs': {
         target: 'ws://localhost:3000',
@@ -63,6 +65,9 @@ module.exports = {
       });
 
       return middlewares;
+    },
+    devMiddleware: {
+      writeToDisk: true
     }
   },
 };

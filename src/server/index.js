@@ -111,6 +111,27 @@ wss.on('close', () => {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../client')));
 
+// Request timeout middleware
+app.use((req, res, next) => {
+  // Set timeout to 30 seconds
+  req.setTimeout(30000, () => {
+    res.status(504).json({
+      error: 'Request timeout',
+      message: 'The request took too long to process'
+    });
+  });
+  next();
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal server error',
+    details: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
+});
+
 // API routes
 app.use('/api/config', configRoutes);
 

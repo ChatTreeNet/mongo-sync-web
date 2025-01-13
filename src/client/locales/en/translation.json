@@ -19,7 +19,7 @@
     "collection": "Collection",
     "example": "Example",
     "error": {
-      "loading": "Error loading collections",
+      "loading": "Failed to load collections",
       "connection": "Connection error"
     }
   },
@@ -42,8 +42,8 @@
     "cronExpression": "Cron Expression",
     "timeWindow": {
       "title": "Sync Time Window",
-      "start": "Start",
-      "end": "End",
+      "start": "Start Time",
+      "end": "End Time",
       "help": "Sync operations will only run during this time window"
     },
     "startTime": "Start Time",
@@ -66,14 +66,14 @@
     },
     "summary": {
       "prefix": "Will run at",
-      "daily": "{{time}} every day",
-      "weekly": "{{time}} every {{day}}",
-      "monthly": "{{time}} on day {{day}} of every month",
+      "daily": "every day at {{time}}",
+      "weekly": "every {{day}} at {{time}}",
+      "monthly": "on day {{day}} of every month at {{time}}",
       "invalid": "Invalid schedule"
     }
   },
   "sync": {
-    "title": "Sync Controls",
+    "title": "Sync Control",
     "status": {
       "title": "Sync Status",
       "label": "Status",
@@ -83,7 +83,11 @@
       "lastSync": "Last Sync",
       "errorDetails": "Error Details",
       "progress": {
-        "complete": "Complete"
+        "complete": "Complete",
+        "collection": "Current Collection",
+        "processed": "Documents Processed",
+        "inserted": "Inserted",
+        "updated": "Updated"
       }
     },
     "lastRun": "Last Run",
@@ -92,7 +96,14 @@
       "save": "Save Configuration",
       "saving": "Saving...",
       "syncNow": "Sync Now",
-      "syncing": "Syncing..."
+      "syncing": "Stop Sync",
+      "stopping": "Stopping..."
+    },
+    "error": {
+      "start": "Failed to start sync",
+      "config": "Configuration error",
+      "inProgress": "Sync already in progress",
+      "noConfig": "No configuration found"
     }
   },
   "logs": {
@@ -107,7 +118,7 @@
       "success": "Success",
       "errors": "Errors",
       "duration": "Duration",
-      "seconds": "s",
+      "seconds": "seconds",
       "syncing": "Syncing...",
       "none": "None",
       "total": "Total",
@@ -120,16 +131,25 @@
       "details": "View Error Details",
       "message": "Error Message",
       "code": "Error Code",
-      "info": "Details"
+      "info": "Additional Info"
     },
     "sync": {
       "status": {
         "success": "Success",
         "error": "Error",
-        "pending": "Pending"
+        "pending": "In Progress"
       },
       "complete": "All collections synced successfully"
     }
+  },
+  "batch": {
+    "title": "Batch Configuration",
+    "batchSize": "Batch Size",
+    "batchSizeHelp": "Number of documents per batch (1000-10000)",
+    "chunkSize": "Chunk Size",
+    "chunkSizeHelp": "Number of documents per parallel write (100-5000)",
+    "batchDelay": "Batch Delay",
+    "batchDelayHelp": "Delay between batches in milliseconds (0-1000)"
   },
   "language": {
     "title": "Language",

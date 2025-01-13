@@ -4,10 +4,23 @@ A robust MongoDB database synchronization tool that enables automated data synch
 
 ## Features
 
+- **Incremental Synchronization**:
+  - Smart detection of new and modified documents
+  - Timestamp and ID-based tracking
+  - Automatic missing data补充
+  - Change Stream real-time monitoring
 - **Scheduled Synchronization**: Automated sync using cron schedules
 - **Manual Sync**: On-demand synchronization capability
 - **Time Window Control**: Configure specific time windows for sync operations
-- **Batch Processing**: Efficient data transfer with configurable batch sizes
+- **Batch Processing**: 
+  - Configurable batch sizes (1000-10000)
+  - Adjustable chunk sizes (100-5000)
+  - Customizable batch delay (0-1000ms)
+- **Real-time Monitoring**:
+  - Live sync progress tracking
+  - WebSocket-based real-time logs
+  - Interactive sync control
+  - Detailed sync statistics
 - **Error Handling**: 
   - Automatic retry mechanism for failed operations
   - Detailed error logging and tracking
@@ -15,8 +28,16 @@ A robust MongoDB database synchronization tool that enables automated data synch
 - **Verification**:
   - Document count verification
   - Index verification between source and target collections
-- **Progress Tracking**: Real-time sync progress monitoring
-- **Web Interface**: User-friendly interface for configuration and monitoring
+  - Batch-level data validation
+- **Internationalization**:
+  - English and Chinese language support
+  - Easy to add new languages
+  - Real-time language switching
+- **Web Interface**: 
+  - User-friendly configuration interface
+  - Real-time sync status display
+  - Interactive log viewer
+  - Responsive design
 - **Docker Support**: Easy deployment using Docker and Docker Compose
 
 ## Installation
@@ -81,6 +102,9 @@ Configuration is managed through `src/config/sync-config.json`:
 - **timeWindow**: 
   - **start**: Daily start time for sync window (HH:mm)
   - **end**: Daily end time for sync window (HH:mm)
+- **batchSize**: Number of documents per batch (1000-10000)
+- **chunkSize**: Number of documents per write operation (100-5000)
+- **batchDelay**: Delay between batches in milliseconds (0-1000)
 - **isActive**: Enable/disable sync service
 
 ## Usage
@@ -113,9 +137,12 @@ curl -X POST http://localhost:3000/api/sync/manual
 
 - `GET /api/config`: Get current configuration
 - `POST /api/config`: Update configuration
-- `POST /api/sync/manual`: Trigger manual sync
-- `GET /api/sync/status`: Get sync status
-- `GET /api/logs`: Get sync logs
+- `GET /api/config/collections`: Get available collections
+- `GET /api/config/status`: Get sync status
+- `GET /api/config/logs`: Get sync logs
+- `POST /api/config/sync`: Trigger manual sync
+- `POST /api/config/sync/stop`: Stop current sync
+- `DELETE /api/config/logs`: Clear sync logs
 
 ## Features in Detail
 
@@ -126,24 +153,95 @@ curl -X POST http://localhost:3000/api/sync/manual
 - Automatic retry mechanism for failed batches
 - Progress tracking for each batch
 
+### Incremental Synchronization
+
+- **Smart Detection**:
+  - Uses document timestamps for change detection
+  - Tracks document IDs for efficient updates
+  - Automatically identifies missing documents
+  - Optimizes sync operations based on changes
+
+- **Change Stream Integration**:
+  - Real-time monitoring of database changes
+  - Immediate synchronization of updates
+  - Automatic reconnection on connection loss
+  - Efficient change propagation
+
+### Real-time Monitoring
+
+- **Live Progress Tracking**:
+  - Document count and percentage complete
+  - Current collection status
+  - Insert and update statistics
+  - Estimated time remaining
+
+- **WebSocket Integration**:
+  - Real-time log streaming
+  - Instant status updates
+  - Bidirectional communication
+  - Low latency monitoring
+
 ### Error Handling
 
-- Connection error detection and logging
-- Write operation error handling with retries
-- Detailed error reporting in logs
-- Automatic cleanup on failure
+- **Connection Management**:
+  - Automatic retry on connection failure
+  - Graceful error recovery
+  - Connection pool optimization
+  - Timeout handling
+
+- **Operation Handling**:
+  - Write operation retries
+  - Batch failure recovery
+  - Transaction rollback support
+  - Data consistency checks
+
+- **Logging and Reporting**:
+  - Detailed error diagnostics
+  - Stack trace analysis
+  - Error categorization
+  - Automatic cleanup procedures
 
 ### Verification
 
-- Document count verification after sync
-- Index structure verification between source and target
-- Detailed mismatch reporting
+- **Data Integrity**:
+  - Document count verification
+  - Content hash comparison
+  - Index structure validation
+  - Field-level verification
+
+- **Performance Metrics**:
+  - Sync duration tracking
+  - Resource usage monitoring
+  - Network latency analysis
+  - Throughput measurement
 
 ### Time Window Control
 
-- Configure specific time windows for sync operations
-- Prevents sync outside of allowed time windows
-- Useful for managing database load during peak hours
+- **Schedule Management**:
+  - Flexible cron expressions
+  - Multiple time windows support
+  - Holiday schedule handling
+  - Time zone awareness
+
+- **Load Balancing**:
+  - Peak hour avoidance
+  - Resource utilization control
+  - Concurrent operation limits
+  - Priority-based scheduling
+
+### Internationalization
+
+- **Language Support**:
+  - English and Chinese interfaces
+  - Real-time language switching
+  - Unicode support
+  - Date/time localization
+
+- **Extensibility**:
+  - Easy language addition
+  - Translation management
+  - Locale configuration
+  - Format customization
 
 ## Logging
 

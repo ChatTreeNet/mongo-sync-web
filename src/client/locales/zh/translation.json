@@ -83,7 +83,11 @@
       "lastSync": "上次同步",
       "errorDetails": "错误详情",
       "progress": {
-        "complete": "完成"
+        "complete": "完成",
+        "collection": "当前集合",
+        "processed": "已处理文档",
+        "inserted": "已插入",
+        "updated": "已更新"
       }
     },
     "lastRun": "上次运行",
@@ -92,7 +96,14 @@
       "save": "保存配置",
       "saving": "保存中...",
       "syncNow": "立即同步",
-      "syncing": "同步中..."
+      "syncing": "同步中",
+      "stopping": "正在停止..."
+    },
+    "error": {
+      "start": "启动同步失败",
+      "config": "配置错误",
+      "inProgress": "同步正在进行中",
+      "noConfig": "未找到配置"
     }
   },
   "logs": {
@@ -130,6 +141,15 @@
       },
       "complete": "所有集合同步完成"
     }
+  },
+  "batch": {
+    "title": "批处理配置",
+    "batchSize": "批次大小",
+    "batchSizeHelp": "每批处理的文档数量 (1000-10000)",
+    "chunkSize": "分块大小",
+    "chunkSizeHelp": "并行写入的文档数量 (100-5000)",
+    "batchDelay": "批次延迟",
+    "batchDelayHelp": "批次间延迟时间(毫秒) (0-1000)"
   },
   "language": {
     "title": "语言",

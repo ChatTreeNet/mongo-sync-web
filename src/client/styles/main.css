@@ -441,6 +441,66 @@ h1 {
   color: var(--danger-color);
 }
 
+/* Progress Bar Styles */
+.sync-progress {
+  margin-top: 1rem;
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--background-color);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--success-color);
+  transition: width 0.3s ease;
+}
+
+.progress-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.progress-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--success-color);
+  text-align: center;
+}
+
+.progress-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  background-color: var(--background-color);
+  border-radius: 4px;
+}
+
+.progress-stats span {
+  display: flex;
+  align-items: center;
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+}
+
+.progress-stats span::before {
+  content: '•';
+  margin-right: 0.5rem;
+  color: var(--success-color);
+  font-size: 1.2rem;
+}
+
 /* Logs Panel */
 .logs-panel {
   background-color: white;
@@ -747,7 +807,7 @@ h1 {
 }
 
 /* Responsive */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .container {
     margin: 1rem auto;
   }
@@ -759,5 +819,9 @@ h1 {
   .time-window {
     grid-template-columns: 1fr;
     gap: 0.5rem;
+  }
+
+  .progress-stats {
+    grid-template-columns: 1fr;
   }
 }

@@ -108,13 +108,17 @@ router.get('/', async (req, res) => {
 // 获取同步状态
 router.get('/status', async (req, res) => {
   try {
-    const config = await configManager.init();
-    const syncService = global.syncService;
+    const [config, syncStatus] = await Promise.all([
+      configManager.init(),
+      configManager.getSyncStatus()
+    ]);
+
     const status = {
-      isRunning: syncService ? syncService.isRunning() : false,
-      lastSync: config ? config.lastSync : null,
-      error: config ? config.error : null
+      ...syncStatus,
+      lastSync: config?.lastSync || null,
+      error: config?.error || null
     };
+
     res.json(status);
   } catch (error) {
     console.error('[GET /api/config/status] Error:', error);
@@ -143,7 +147,10 @@ router.post('/', async (req, res) => {
       targetUrl,
       collections,
       schedule = '0 0 * * *',
-      timeWindow = { start: '00:00', end: '06:00' }
+      timeWindow = { start: '00:00', end: '06:00' },
+      batchSize = 5000,
+      chunkSize = 1000,
+      batchDelay = 10
     } = req.body;
 
     console.log('Parsed request data:', {
@@ -159,6 +166,31 @@ router.post('/', async (req, res) => {
     if (!sourceUrl) missingFields.push('sourceUrl');
     if (!targetUrl) missingFields.push('targetUrl');
     if (!collections) missingFields.push('collections');
+
+    // Validate batch processing parameters
+    if (batchSize < 1000 || batchSize > 10000) {
+      return res.status(400).json({
+        error: 'Invalid batch size',
+        details: 'Batch size must be between 1000 and 10000',
+        received: batchSize
+      });
+    }
+
+    if (chunkSize < 100 || chunkSize > 5000) {
+      return res.status(400).json({
+        error: 'Invalid chunk size',
+        details: 'Chunk size must be between 100 and 5000',
+        received: chunkSize
+      });
+    }
+
+    if (batchDelay < 0 || batchDelay > 1000) {
+      return res.status(400).json({
+        error: 'Invalid batch delay',
+        details: 'Batch delay must be between 0 and 1000 milliseconds',
+        received: batchDelay
+      });
+    }
 
     if (missingFields.length > 0) {
       console.error('Missing required fields:', missingFields);
@@ -247,6 +279,9 @@ router.post('/', async (req, res) => {
       collections,
       schedule,
       timeWindow,
+      batchSize,
+      chunkSize,
+      batchDelay,
       error: null
     };
 

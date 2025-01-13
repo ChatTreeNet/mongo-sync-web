@@ -6,8 +6,8 @@ const SyncControls = ({ onSave, onSync, isSaving, isSyncing }) => {
 
   return (
     <div className="button-group">
-      <button 
-        type="submit" 
+      <button
+        type="submit"
         className="submit-btn"
         disabled={isSaving}
         onClick={onSave}
@@ -18,7 +18,6 @@ const SyncControls = ({ onSave, onSync, isSaving, isSyncing }) => {
         type="button"
         className={`sync-btn ${isSyncing ? 'syncing' : ''}`}
         onClick={onSync}
-        disabled={isSyncing}
       >
         {isSyncing ? t('sync.controls.syncing') : t('sync.controls.syncNow')}
       </button>

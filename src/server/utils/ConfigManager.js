@@ -82,7 +82,7 @@ class ConfigManager {
   async load() {
     try {
       const data = await fs.readFile(this.configPath, 'utf8');
-      
+
       try {
         this.config = JSON.parse(data);
       } catch (parseError) {
@@ -91,7 +91,7 @@ class ConfigManager {
         const backupPath = `${this.configPath}.${Date.now()}.bak`;
         await fs.copyFile(this.configPath, backupPath);
         console.log(`Backed up corrupted config to ${backupPath}`);
-        
+
         // Reset to default config
         this.config = this.getDefaultConfig();
         await this.save(this.config);
@@ -117,6 +117,9 @@ class ConfigManager {
         start: '00:00',
         end: '06:00'
       },
+      batchSize: 5000,    // 默认批次大小
+      chunkSize: 1000,    // 默认分块大小
+      batchDelay: 10,     // 默认批次延迟(毫秒)
       isActive: true,
       lastSync: null,
       error: null,
@@ -129,7 +132,7 @@ class ConfigManager {
     try {
       console.log('Saving config:', config);
       await this.ensureConfigDir();
-      
+
       // Validate config object
       if (!config || typeof config !== 'object') {
         throw new Error('Invalid config object');
@@ -145,7 +148,7 @@ class ConfigManager {
       };
 
       // Validate required fields
-      const requiredFields = ['sourceUrl', 'targetUrl', 'collections', 'schedule', 'timeWindow'];
+      const requiredFields = ['sourceUrl', 'targetUrl', 'collections', 'schedule', 'timeWindow', 'batchSize', 'chunkSize', 'batchDelay'];
       for (const field of requiredFields) {
         if (!configToSave[field]) {
           throw new Error(`Missing required field: ${field}`);
@@ -154,25 +157,25 @@ class ConfigManager {
 
       console.log('Config to save:', configToSave);
       console.log('Config path:', this.configPath);
-      
+
       // Write to a temporary file first
       const tempPath = path.join(os.tmpdir(), `sync-config-${Date.now()}.json.tmp`);
       const configJson = JSON.stringify(configToSave, null, 2);
-      
+
       try {
         // Write to temp file
-        await fs.writeFile(tempPath, configJson, { 
-          encoding: 'utf8', 
+        await fs.writeFile(tempPath, configJson, {
+          encoding: 'utf8',
           mode: 0o644,
           flag: 'w'
         });
-        
+
         // Verify the temp file was written correctly
         const written = await fs.readFile(tempPath, 'utf8');
         if (written !== configJson) {
           throw new Error('Config file verification failed');
         }
-        
+
         // Backup existing config if it exists
         try {
           await fs.access(this.configPath);
@@ -183,10 +186,10 @@ class ConfigManager {
             throw error;
           }
         }
-        
+
         // Atomically replace the old file with the new one
         await fs.rename(tempPath, this.configPath);
-        
+
         // Update in-memory config
         this.config = configToSave;
         console.log('Config saved successfully');
@@ -211,6 +214,39 @@ class ConfigManager {
       this.config.lastSync = date.toISOString();
       await this.save(this.config);
     }
+  }
+
+  async getLastSync() {
+    if (!this.config) {
+      await this.init();
+    }
+    return this.config?.lastSync ? new Date(this.config.lastSync) : null;
+  }
+
+  async updateSyncStatus(status) {
+    if (this.config) {
+      // 直接在config根级别更新状态
+      this.config = {
+        ...this.config,
+        ...status,
+        updatedAt: new Date().toISOString()
+      };
+      await this.save(this.config);
+    }
+  }
+
+  async getSyncStatus() {
+    if (!this.config) {
+      await this.init();
+    }
+    // 从config根级别获取状态
+    return {
+      isRunning: this.config?.isRunning || false,
+      lastSync: this.config?.lastSync || null,
+      error: this.config?.error || null,
+      progress: this.config?.progress || null,
+      updatedAt: this.config?.updatedAt
+    };
   }
 
   async updateError(error) {

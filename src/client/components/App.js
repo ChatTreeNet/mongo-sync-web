@@ -9,6 +9,7 @@ import LogViewer from './LogViewer';
 import LiveLogViewer from './LiveLogViewer';
 import SyncControls from './SyncControls';
 import LanguageSwitcher from './LanguageSwitcher';
+import BatchConfig from './BatchConfig';
 import * as api from '../utils/apiUtils';
 import '../i18n';
 import '../styles/main.css';
@@ -26,6 +27,9 @@ function App() {
       start: '00:00',
       end: '06:00'
     },
+    batchSize: 5000,    // 默认批次大小
+    chunkSize: 1000,    // 默认分块大小
+    batchDelay: 10,     // 默认批次延迟(毫秒)
     isActive: true,
     lastSync: null,
     error: null
@@ -39,11 +43,13 @@ function App() {
   });
   const [logs, setLogs] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isStopping, setIsStopping] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [availableCollections, setAvailableCollections] = useState([]);
   const [isLoadingCollections, setIsLoadingCollections] = useState(false);
   const [selectedCollections, setSelectedCollections] = useState([]);
   const [showLiveLogs, setShowLiveLogs] = useState(false);
+
 
   // Initial data fetch
   useEffect(() => {
@@ -58,6 +64,12 @@ function App() {
         setConfig(configData || defaultConfig);
         setStatus(statusData);
         setLogs(logsData);
+
+        // 如果正在同步，显示实时日志
+        if (statusData.isRunning) {
+          setIsSyncing(true);
+          setShowLiveLogs(true);
+        }
       } catch (error) {
         console.error('Error fetching initial data:', error);
       }
@@ -68,18 +80,32 @@ function App() {
     // Refresh status and logs periodically
     const interval = setInterval(async () => {
       try {
-        const [statusData, logsData] = await Promise.all([
-          api.fetchStatus(),
-          api.fetchLogs()
-        ]);
+        // 分开请求以减少负载
+        const statusData = await api.fetchStatus();
         setStatus(statusData);
-        setLogs(logsData);
+
+        // 更新同步状态
+        setIsSyncing(statusData.isRunning);
+        if (!statusData.isRunning) {
+          setIsStopping(false);
+        }
+
+        // 只有当状态显示正在运行时才获取日志
+        if (statusData.isRunning) {
+          const logsData = await api.fetchLogs();
+          setLogs(logsData);
+        }
       } catch (error) {
         console.error('Error refreshing data:', error);
       }
-    }, 10000);
+    }, 2000); // 设置轮询间隔为2秒，平衡实时性和服务器负载
 
-    return () => clearInterval(interval);
+    // 在组件卸载时清理定时器
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
   }, []);
 
   // Fetch collections when URLs change
@@ -165,13 +191,59 @@ function App() {
     }
   };
 
-  const handleSync = async () => {
-    if (isSyncing) return;
+  const fetchLatestData = async () => {
+    try {
+      const [statusData, logsData] = await Promise.all([
+        api.fetchStatus(),
+        api.fetchLogs()
+      ]);
+      setStatus(statusData);
+      setLogs(logsData);
+      return statusData;
+    } catch (error) {
+      console.error('Error fetching latest data:', error);
+      return null;
+    }
+  };
+
+  const handleStopSync = async () => {
+    if (!isSyncing) return;
 
     try {
-      setIsSyncing(true);
+      setIsStopping(true);
+      await api.stopSync();
+
+      // 立即更新状态
+      setIsSyncing(false);
+      setIsStopping(false);
+
+      // 多次尝试获取最新状态，确保同步已停止
+      let retries = 3;
+      while (retries > 0) {
+        const statusData = await fetchLatestData();
+        if (statusData && !statusData.isRunning) {
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 500));
+        retries--;
+      }
+    } catch (error) {
+      console.error('Error stopping sync:', error);
+      alert(t('sync.error.stop') + ': ' + error.message);
+      setIsStopping(false);
+    }
+  };
+
+  const handleSync = async () => {
+    if (isSyncing) {
       setShowLiveLogs(true);
+      return;
+    }
+
+    try {
       await api.triggerSync();
+      setShowLiveLogs(true);
+      setIsSyncing(true);
       const [statusData, logsData] = await Promise.all([
         api.fetchStatus(),
         api.fetchLogs()
@@ -179,9 +251,10 @@ function App() {
       setStatus(statusData);
       setLogs(logsData);
     } catch (error) {
-      alert(t('sync.error.start') + ': ' + error.message);
-    } finally {
-      setIsSyncing(false);
+      const errorKey = error.message.includes('already in progress') ? 'inProgress' :
+        error.message.includes('No configuration') ? 'noConfig' :
+          error.message.includes('Configuration') ? 'config' : 'start';
+      alert(t(`sync.error.${errorKey}`) + ': ' + error.message);
     }
   };
 
@@ -229,11 +302,17 @@ function App() {
           onConfigChange={handleConfigChange}
         />
 
+        <BatchConfig
+          config={config}
+          onConfigChange={handleConfigChange}
+        />
+
         <SyncControls
           onSave={handleSave}
           onSync={handleSync}
           isSaving={isSaving}
           isSyncing={isSyncing}
+          isStopping={isStopping}
         />
       </form>
 
@@ -245,6 +324,9 @@ function App() {
       <LiveLogViewer
         isVisible={showLiveLogs}
         onClose={handleCloseLiveLogs}
+        onStopSync={handleStopSync}
+        isSyncing={isSyncing}
+        isStopping={isStopping}
       />
     </div>
   );

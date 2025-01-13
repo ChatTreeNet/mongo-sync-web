@@ -10,6 +10,9 @@ class SyncService {
     this.currentTask = null;
     this.running = false;
     this.config = null;
+    this.changeStream = null;
+    this.lastSyncTime = null;
+    this.collections = new Set();
   }
 
   isRunning() {
@@ -24,9 +27,12 @@ class SyncService {
         const sourceConn = await mongoose.createConnection(config.sourceUrl, {
           serverSelectionTimeoutMS: 30000,
           connectTimeoutMS: 30000,
-          socketTimeoutMS: 30000,
-          maxPoolSize: 10,
-          minPoolSize: 1
+          socketTimeoutMS: 60000,
+          maxPoolSize: 50,
+          minPoolSize: 5,
+          readPreference: 'secondaryPreferred',
+          w: 'majority',
+          retryWrites: true
         }).asPromise();
         console.log('Source connection established');
 
@@ -55,9 +61,11 @@ class SyncService {
         const targetConn = await mongoose.createConnection(config.targetUrl, {
           serverSelectionTimeoutMS: 30000,
           connectTimeoutMS: 30000,
-          socketTimeoutMS: 30000,
-          maxPoolSize: 10,
-          minPoolSize: 1
+          socketTimeoutMS: 60000,
+          maxPoolSize: 50,
+          minPoolSize: 5,
+          w: 'majority',
+          retryWrites: true
         }).asPromise();
 
         // Test target connection
@@ -115,7 +123,111 @@ class SyncService {
     return currentTime >= startTime && currentTime <= endTime;
   }
 
-  async syncCollection(collectionName, batchSize = 1000) {
+  async setupChangeStream(collectionName) {
+    // Add collection to tracked collections
+    this.collections.add(collectionName);
+
+    // If change stream already exists, no need to create a new one
+    if (this.changeStream) {
+      await logManager.addLog('info', `Added ${collectionName} to change stream tracking`);
+      return;
+    }
+
+    const setupStream = async () => {
+      try {
+        const sourceDb = this.sourceDb.getClient().db();
+
+        // Setup change stream pipeline for all tracked collections
+        const pipeline = [
+          {
+            $match: {
+              'ns.coll': { $in: Array.from(this.collections) },
+              operationType: { $in: ['insert', 'update', 'replace', 'delete'] }
+            }
+          }
+        ];
+
+        // Start change stream on database level
+        this.changeStream = sourceDb.watch(pipeline, {
+          fullDocument: 'updateLookup'
+        });
+
+        // Handle change stream events
+        this.changeStream.on('change', async (change) => {
+          try {
+            const targetDb = this.targetDb.getClient().db();
+            const targetCollection = targetDb.collection(change.ns.coll);
+
+            switch (change.operationType) {
+              case 'insert':
+              case 'update':
+              case 'replace':
+                await targetCollection.replaceOne(
+                  { _id: change.fullDocument._id },
+                  change.fullDocument,
+                  { upsert: true }
+                );
+                break;
+              case 'delete':
+                await targetCollection.deleteOne({ _id: change.documentKey._id });
+                break;
+            }
+
+            await logManager.addLog('info', `Processed ${change.operationType} operation via change stream`, {
+              collection: change.ns.coll,
+              documentId: change.documentKey._id
+            });
+          } catch (error) {
+            await logManager.addLog('error', 'Error processing change stream event', {
+              error: error.message,
+              change: change
+            });
+          }
+        });
+
+        // Handle errors and reconnection
+        this.changeStream.on('error', async (error) => {
+          await logManager.addLog('error', 'Change stream error', {
+            error: error.message
+          });
+
+          // Close the errored stream
+          try {
+            await this.changeStream.close();
+            this.changeStream = null;
+          } catch (e) {
+            console.error('Error closing change stream:', e);
+          }
+
+          // Attempt to reconnect after delay
+          setTimeout(async () => {
+            try {
+              await setupStream();
+              await logManager.addLog('info', 'Change stream reconnected');
+            } catch (e) {
+              await logManager.addLog('error', 'Failed to reconnect change stream', {
+                error: e.message
+              });
+            }
+          }, 5000); // 5 second delay before reconnect
+        });
+
+        await logManager.addLog('info', 'Change stream setup complete', {
+          collections: Array.from(this.collections)
+        });
+      } catch (error) {
+        await logManager.addLog('error', 'Error setting up change stream', {
+          error: error.message
+        });
+        throw error;
+      }
+    };
+
+    // Initial setup
+    await setupStream();
+  }
+
+  async syncCollection(collectionName) {
     await logManager.addLog('info', `Starting sync for collection: ${collectionName}`);
 
     try {
@@ -175,11 +287,39 @@ class SyncService {
       let processed = 0;
       let inserted = 0;
       let updated = 0;
-      const total = await sourceCollection.countDocuments();
 
-      // 使用批处理来同步数据
-      while (processed < total) {
-        // 检查是否在允许的时间窗口内
+      // 获取批处理配置
+      const batchSize = this.config.batchSize || 5000;
+      const chunkSize = this.config.chunkSize || 1000;
+      const batchDelay = this.config.batchDelay || 10;
+
+      // 使用增量同步
+      let query = {};
+
+      if (this.lastSyncTime) {
+        // 获取目标集合中已存在的文档ID
+        const existingIds = await targetCollection
+          .find({}, { projection: { _id: 1 } })
+          .map(doc => doc._id)
+          .toArray();
+
+        if (existingIds.length > 0) {
+          // 查找上次同步后更新的文档，或者在目标集合中不存在的文档
+          query = {
+            $or: [
+              { _id: { $gt: new mongoose.Types.ObjectId(Math.floor(this.lastSyncTime.getTime() / 1000)) } },
+              { updatedAt: { $gt: this.lastSyncTime } },
+              { _id: { $nin: existingIds } }
+            ]
+          };
+        }
+      }
+
+      // 获取需要同步的总文档数
+      const total = await sourceCollection.countDocuments(query);
+
+      // 使用并行批处理来同步数据
+      while (processed < total && this.running) {
         if (!this.isWithinTimeWindow()) {
           await logManager.addLog('info', 'Outside of sync window, pausing sync');
           return { success: false };
@@ -187,9 +327,11 @@ class SyncService {
 
         // 获取源数据库的批次数据
         const batch = await sourceCollection
-          .find({})
+          .find(query)
+          .sort({ _id: 1 })
           .skip(processed)
           .limit(batchSize)
+          .hint({ _id: 1 }) // 使用_id索引优化查询
           .toArray();
 
         if (batch.length === 0) break;
@@ -204,23 +346,34 @@ class SyncService {
             }
           }));
 
-          // 执行批量写入并记录结果
-          let retries = 3;
-          let result;
-          while (retries > 0) {
-            try {
-              result = await targetCollection.bulkWrite(operations, {
-                ordered: false,
-                writeConcern: { w: 1, wtimeout: 30000 },
-                readPreference: 'secondaryPreferred'
-              });
-              break;
-            } catch (err) {
-              retries--;
-              if (retries === 0) throw err;
-              console.log(`Retrying bulk write operation, ${retries} attempts remaining`);
-              await new Promise(resolve => setTimeout(resolve, 1000));
+          // 串行执行批量写入
+          let result = { upsertedCount: 0, modifiedCount: 0 };
+          for (let i = 0; i < operations.length && this.running; i += chunkSize) {
+            const chunk = operations.slice(i, i + chunkSize);
+            let retries = 3;
+            while (retries > 0 && this.running) {
+              try {
+                const chunkResult = await targetCollection.bulkWrite(chunk, {
+                  ordered: true,
+                  writeConcern: { w: 'majority', wtimeout: 60000 }
+                });
+                result.upsertedCount += chunkResult.upsertedCount || 0;
+                result.modifiedCount += chunkResult.modifiedCount || 0;
+                break;
+              } catch (err) {
+                retries--;
+                if (retries === 0) throw err;
+                console.log(`Retrying bulk write operation, ${retries} attempts remaining`);
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
             }
+            // 每个chunk之间添加延迟
+            await new Promise(resolve => setTimeout(resolve, batchDelay));
+          }
+
+          if (!this.running) {
+            await logManager.addLog('warning', `Sync operation stopped for collection: ${collectionName}`);
+            return { success: false };
           }
 
           inserted += result.upsertedCount || 0;
@@ -228,13 +381,22 @@ class SyncService {
           processed += batch.length;
 
           // 记录进度
-          await logManager.addLog('info', `Processed ${processed}/${total} documents in ${collectionName}`, {
+          const progress = {
             collection: collectionName,
             processed,
             total,
             inserted,
-            updated
-          });
+            updated,
+            percentage: Math.round((processed / total) * 100)
+          };
+
+          await Promise.all([
+            logManager.addLog('info', `Processed ${processed}/${total} documents in ${collectionName}`, progress),
+            configManager.updateSyncStatus({
+              isRunning: true,
+              progress
+            })
+          ]);
 
           // 验证批次写入
           const batchIds = batch.map(doc => doc._id);
@@ -262,8 +424,13 @@ class SyncService {
           }
         }
 
-        // 添加延迟以控制负载
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // 使用配置的延迟时间
+        await new Promise(resolve => setTimeout(resolve, batchDelay));
+      }
+
+      if (!this.running) {
+        await logManager.addLog('warning', `Sync operation stopped for collection: ${collectionName}`);
+        return { success: false };
       }
 
       // 验证最终同步结果
@@ -315,14 +482,31 @@ class SyncService {
   async performSync() {
     if (!this.config || !this.sourceDb || !this.targetDb) {
       await logManager.addLog('error', 'Sync not properly initialized');
+      await configManager.updateSyncStatus({
+        isRunning: false,
+        error: 'Sync not properly initialized'
+      });
       return;
     }
+
+    this.running = true;
+    await configManager.updateSyncStatus({
+      isRunning: true,
+      progress: null,
+      error: null
+    });
 
     const collections = this.config.collections.split(',').map(c => c.trim());
     let success = true;
     const syncStats = {};
 
     for (const collection of collections) {
+      if (!this.running) {
+        await logManager.addLog('warning', 'Sync operation stopped by user');
+        success = false;
+        break;
+      }
+
       const result = await this.syncCollection(collection);
       if (!result.success) {
         success = false;
@@ -332,8 +516,9 @@ class SyncService {
     }
 
     if (success) {
+      const now = new Date();
       // 更新最后同步时间
-      await configManager.updateLastSync(new Date());
+      await configManager.updateLastSync(now);
 
       // 计算总体统计信息
       const totalStats = Object.values(syncStats).reduce((acc, stats) => ({
@@ -343,12 +528,27 @@ class SyncService {
         updated: acc.updated + stats.updated
       }), { total: 0, processed: 0, inserted: 0, updated: 0 });
 
-      await logManager.addLog('success', 'All collections synced successfully', {
-        collections: this.config.collections,
-        collectionStats: syncStats,
-        totalStats
+      await Promise.all([
+        logManager.addLog('success', 'All collections synced successfully', {
+          collections: this.config.collections,
+          collectionStats: syncStats,
+          totalStats
+        }),
+        configManager.updateSyncStatus({
+          isRunning: false,
+          lastSync: now.toISOString(),
+          progress: null,
+          error: null
+        })
+      ]);
+    } else {
+      await configManager.updateSyncStatus({
+        isRunning: false,
+        error: 'Sync failed or stopped'
       });
     }
+
+    this.running = false;
   }
 
   async updateConfig(config) {
@@ -369,7 +569,6 @@ class SyncService {
           return;
         }
 
-        this.running = true;
         try {
           await logManager.addLog('info', 'Starting scheduled sync', { collections: this.config.collections });
           await this.performSync();
@@ -382,8 +581,6 @@ class SyncService {
             details: error.errInfo || error.writeErrors || error.result,
             collections: this.config.collections
           });
-        } finally {
-          this.running = false;
         }
       });
     }
@@ -393,6 +590,16 @@ class SyncService {
     try {
       this.config = config;
       await this.connect(config);
+
+      // 获取上次同步时间
+      const lastSync = await configManager.getLastSync();
+      this.lastSyncTime = lastSync ? new Date(lastSync) : null;
+
+      // 为每个集合设置change stream
+      const collections = config.collections.split(',').map(c => c.trim());
+      for (const collection of collections) {
+        await this.setupChangeStream(collection);
+      }
 
       // 设置定时任务
       this.currentTask = cron.schedule(config.schedule, async () => {
@@ -406,7 +613,6 @@ class SyncService {
           return;
         }
 
-        this.running = true;
         try {
           await logManager.addLog('info', 'Starting scheduled sync', { collections: this.config.collections });
           await this.performSync();
@@ -419,8 +625,6 @@ class SyncService {
             details: error.errInfo || error.writeErrors || error.result,
             collections: this.config.collections
           });
-        } finally {
-          this.running = false;
         }
       });
     } catch (error) {
@@ -434,9 +638,20 @@ class SyncService {
       this.currentTask.stop();
       this.currentTask = null;
     }
+    if (this.changeStream) {
+      await this.changeStream.close();
+      this.changeStream = null;
+    }
+    this.collections.clear();
     await this.disconnect();
     this.running = false;
-    await logManager.addLog('info', 'Sync service stopped', { collections: this.config?.collections });
+    await Promise.all([
+      logManager.addLog('info', 'Sync service stopped', { collections: this.config?.collections }),
+      configManager.updateSyncStatus({
+        isRunning: false,
+        progress: null
+      })
+    ]);
   }
 
   async stopSync() {
@@ -445,7 +660,13 @@ class SyncService {
     }
 
     this.running = false;
-    await logManager.addLog('warning', 'Sync operation terminated by user');
+    await Promise.all([
+      logManager.addLog('warning', 'Sync operation terminated by user'),
+      configManager.updateSyncStatus({
+        isRunning: false,
+        progress: null
+      })
+    ]);
     return { success: true };
   }
 }
@@ -493,8 +714,9 @@ async function restartSync(config) {
 
 // 手动同步函数
 async function manualSync() {
+  let config;
   try {
-    const config = await configManager.init();
+    config = await configManager.init();
     if (!config) {
       throw new Error('No configuration found');
     }
@@ -503,22 +725,74 @@ async function manualSync() {
       throw new Error('Source and target database URLs are required');
     }
 
-    await logManager.addLog('info', 'Starting manual sync', { collections: config.collections });
+    // 设置默认的批处理配置
+    if (!config.batchSize) config.batchSize = 5000;
+    if (!config.chunkSize) config.chunkSize = 1000;
+    if (!config.batchDelay) config.batchDelay = 10;
+
+    await logManager.addLog('info', 'Starting manual sync', {
+      collections: config.collections,
+      batchSize: config.batchSize,
+      chunkSize: config.chunkSize,
+      batchDelay: config.batchDelay
+    });
 
     if (global.syncService && global.syncService.isRunning()) {
       throw new Error('Sync already in progress');
     }
 
-    const syncService = new SyncService();
+    // 创建新的同步服务实例并设置为全局实例
+    syncService = new SyncService();
+    global.syncService = syncService;
     await syncService.start(config);
-    await syncService.performSync();
-    await syncService.stop();
 
-    await logManager.addLog('success', 'Manual sync completed successfully', { collections: config.collections });
-    return { success: true, collections: config.collections };
+    // 获取上次同步时间
+    const lastSync = await configManager.getLastSync();
+    syncService.lastSyncTime = lastSync ? new Date(lastSync) : null;
+
+    try {
+      await syncService.performSync();
+    } finally {
+      await syncService.stop();
+      syncService = null;
+      global.syncService = null;
+    }
+
+    await logManager.addLog('success', 'Manual sync completed successfully', {
+      collections: config.collections,
+      batchSize: config.batchSize,
+      chunkSize: config.chunkSize,
+      batchDelay: config.batchDelay
+    });
+    return {
+      success: true,
+      collections: config.collections,
+      batchConfig: {
+        batchSize: config.batchSize,
+        chunkSize: config.chunkSize,
+        batchDelay: config.batchDelay
+      }
+    };
   } catch (error) {
-    await logManager.addLog('error', 'Manual sync failed', { error: error.message, collections: config?.collections });
-    throw error;
+    let errorLog = {
+      error: error.message
+    };
+
+    // 只有当config存在时才添加配置相关信息
+    if (config) {
+      errorLog = {
+        ...errorLog,
+        collections: config.collections,
+        batchConfig: {
+          batchSize: config.batchSize,
+          chunkSize: config.chunkSize,
+          batchDelay: config.batchDelay
+        }
+      };
+    }
+
+    await logManager.addLog('error', 'Manual sync failed', errorLog);
+    throw new Error(`Sync failed: ${error.message}`);
   }
 }
 

@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const LiveLogViewer = ({ isVisible, onClose }) => {
+const LiveLogViewer = ({ isVisible, onClose, onStopSync, isSyncing, isStopping }) => {
   const [logs, setLogs] = useState([]);
   const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
   const logContainerRef = useRef(null);
 
   useEffect(() => {
+    // 当窗口打开时清空日志
     if (isVisible) {
+      setLogs([]);
       // Create WebSocket connection
       // Connect through webpack dev server proxy
       const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -58,9 +60,11 @@ const LiveLogViewer = ({ isVisible, onClose }) => {
       };
 
       return () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.close();
         }
+        // 清理连接状态
+        setConnected(false);
       };
     }
   }, [isVisible]);
@@ -78,33 +82,15 @@ const LiveLogViewer = ({ isVisible, onClose }) => {
               {connected ? 'Connected' : 'Disconnected'}
             </div>
             <div className="header-buttons">
-              <button
-                className="stop-button"
-                onClick={async () => {
-                  try {
-                    const response = await fetch('/api/config/sync/stop', {
-                      method: 'POST'
-                    });
-                    if (!response.ok) {
-                      throw new Error('Failed to stop sync');
-                    }
-                    setLogs(prev => [...prev, {
-                      type: 'warning',
-                      message: 'Sync operation stopped by user',
-                      timestamp: new Date().toISOString()
-                    }]);
-                  } catch (error) {
-                    console.error('Error stopping sync:', error);
-                    setLogs(prev => [...prev, {
-                      type: 'error',
-                      message: 'Failed to stop sync: ' + error.message,
-                      timestamp: new Date().toISOString()
-                    }]);
-                  }
-                }}
-              >
-                Stop Sync
-              </button>
+              {isSyncing && !isStopping && (
+                <button
+                  className="stop-button"
+                  onClick={onStopSync}
+                  disabled={isStopping}
+                >
+                  {isStopping ? 'Stopping...' : 'Stop Sync'}
+                </button>
+              )}
               <button className="close-button" onClick={onClose}>×</button>
             </div>
           </div>
